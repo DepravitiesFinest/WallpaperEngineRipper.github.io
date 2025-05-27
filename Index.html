@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyxthal - Professional Asset Extraction</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Source+Code+Pro:wght@300;400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-50: #fafafa;
+            --primary-100: #f5f5f5;
+            --primary-200: #e5e5e5;
+            --primary-300: #d4d4d4;
+            --primary-400: #a3a3a3;
+            --primary-500: #737373;
+            --primary-600: #525252;
+            --primary-700: #404040;
+            --primary-800: #262626;
+            --primary-900: #171717;
+            --primary-950: #0a0a0a;
+            
+            --accent: #2563eb;
+            --accent-light: #3b82f6;
+            --accent-dark: #1d4ed8;
+            --accent-red: #ef4444;
+            --accent-red-dark: #dc2626;
+            
+            --surface-primary: rgba(23, 23, 23, 0.95);
+            --surface-secondary: rgba(38, 38, 38, 0.9);
+            --surface-elevated: rgba(64, 64, 64, 0.8);
+            
+            --border-primary: rgba(82, 82, 82, 0.2);
+            --border-secondary: rgba(115, 115, 115, 0.1);
+            --border-danger: rgba(239, 68, 68, 0.2);
+            
+            --text-primary: #fafafa;
+            --text-secondary: #d4d4d4;
+            --text-tertiary: #a3a3a3;
+        }
+
+        body {
+            min-height: 100vh;
+            background: 
+                radial-gradient(ellipse 1200px 800px at 50% -20%, rgba(37, 99, 235, 0.08) 0%, transparent 50%),
+                linear-gradient(180deg, #0a0a0a 0%, #171717 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .geometric-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.4;
+            background-image: 
+                linear-gradient(30deg, transparent 40%, rgba(37, 99, 235, 0.02) 40%, rgba(37, 99, 235, 0.02) 60%, transparent 60%),
+                linear-gradient(-30deg, transparent 40%, rgba(37, 99, 235, 0.02) 40%, rgba(37, 99, 235, 0.02) 60%, transparent 60%);
+            background-size: 120px 120px;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 1rem 0;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 
+                0 0 10px rgba(239, 68, 68, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .brand-mark::before {
+            content: '☠';
+            position: absolute;
+            font-size: 18px;
+            color: #ef4444;
+            z-index: 2;
+            text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            animation: skull-glow 3s ease-in-out infinite;
+        }
+
+        .brand-mark::after {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            background: radial-gradient(circle at center, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+            border-radius: 7px;
+            z-index: 1;
+        }
+
+        @keyframes skull-glow {
+            0%, 100% { 
+                color: #ef4444;
+                text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            }
+            50% { 
+                color: #dc2626;
+                text-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+            }
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-name {
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .brand:hover .brand-name {
+            text-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .brand-tagline {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse-status 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-status {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 6rem 2rem 2rem;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 3rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                max-width: 720px;
+            }
+        }
+
+        .workspace {
+            background: var(--surface-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.3),
+                0 10px 10px -5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .workspace:hover {
+            border-color: var(--border-danger);
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.4),
+                0 0 20px rgba(239, 68, 68, 0.1);
+        }
+
+        .workspace-header {
+            padding: 2rem 2rem 0;
+        }
+
+        .workspace-title {
+            font-size: 1.875rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .workspace-subtitle {
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .workspace-content {
+            padding: 2rem;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border-primary);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            background: 
+                radial-gradient(circle at center, rgba(37, 99, 235, 0.03) 0%, transparent 70%),
+                var(--surface-secondary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .drop-zone:hover {
+            border-color: rgba(37, 99, 235, 0.4);
+            background: 
+                radial-gradient(circle at center, rgba(37, 99, 235, 0.05) 0%, transparent 70%),
+                rgba(38, 38, 38, 0.95);
+            transform: translateY(-2px);
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: 
+                radial-gradient(circle at center, rgba(37, 99, 235, 0.08) 0%, transparent 70%),
+                rgba(38, 38, 38, 0.98);
+            box-shadow: 
+                0 0 0 4px rgba(37, 99, 235, 0.1),
+                0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .drop-zone-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1.5rem;
+            background: var(--surface-elevated);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-secondary);
+        }
+
+        .drop-zone-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+            font-weight: 400;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .progress-container {
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .progress-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .progress-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background: var(--surface-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--border-secondary);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 50%, var(--accent-red) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: progress-shimmer 2s infinite;
+        }
+
+        @keyframes progress-shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-details {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 0.75rem;
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .metric-card {
+            background: var(--surface-secondary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .download-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .download-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border: 1px solid var(--accent-dark);
+        }
+
+        .download-button:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            text-decoration: none;
+            color: white;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .info-panel {
+            background: var(--surface-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1.5rem 1.5rem 0;
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .panel-content {
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .feature-item::before {
+            content: '';
+            width: 4px;
+            height: 4px;
+            background: linear-gradient(45deg, var(--accent), var(--accent-red));
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 0 4px rgba(37, 99, 235, 0.3);
+        }
+
+        .warning-panel {
+            background: var(--surface-primary);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .warning-header {
+            background: rgba(239, 68, 68, 0.05);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(239, 68, 68, 0.1);
+        }
+
+        .warning-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #fca5a5;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .warning-content {
+            padding: 1.5rem;
+        }
+
+        .warning-text {
+            font-size: 0.875rem;
+            color: rgba(254, 202, 202, 0.8);
+            line-height: 1.5;
+        }
+
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: none;
+            border-left: 4px solid;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
+            color: #6ee7b7;
+        }
+
+        .unsupported {
+            display: none;
+            text-align: center;
+            color: #ef4444;
+            padding: 4rem 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 5rem 1rem 1rem;
+            }
+            
+            .workspace-header,
+            .workspace-content {
+                padding: 1.5rem;
+            }
+            
+            .drop-zone {
+                padding: 2rem 1.5rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="geometric-bg"></div>
+
+    <header class="header">
+        <div class="header-content">
+            <div class="brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <div class="brand-name">Nyxthal</div>
+                    <div class="brand-tagline">Asset Extraction</div>
+                </div>
+            </div>
+
+            </div>
+        </div>
+    </header>
+
+    <div id="unsupported-browser" class="unsupported">
+        <div class="workspace">
+            <div class="workspace-header">
+                <h2>Browser Not Supported</h2>
+                <p>Please use a modern browser like Chrome, Firefox, or Edge.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content" class="main-container">
+        <div class="workspace">
+            <div class="workspace-header">
+                <h1 class="workspace-title">PKG File Processor</h1>
+                <p class="workspace-subtitle">
+                    Extract and analyze assets from Wallpaper Engine package files with professional-grade tools.
+                </p>
+            </div>
+
+            <div class="workspace-content">
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">☠</div>
+                    <div class="drop-zone-title">Select PKG File</div>
+                    <div class="drop-zone-subtitle">Drag and drop or click to browse</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".pkg">
+                </div>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-header">
+                        <div class="progress-title">Processing</div>
+                        <div class="progress-value" id="progressValue">0%</div>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-details" id="progressDetails">Initializing...</div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Version</div>
+                        <div class="metric-value" id="versionMetric">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Files</div>
+                        <div class="metric-value" id="filesMetric">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Size</div>
+                        <div class="metric-value" id="sizeMetric">--</div>
+                    </div>
+                </div>
+
+                <div class="download-container" id="downloadContainer">
+                    <!-- Download button will be inserted here -->
+                </div>
+
+                <div class="alert alert-error" id="errorAlert"></div>
+                <div class="alert alert-success" id="successAlert"></div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="info-panel">
+                <div class="panel-header">
+                    <div class="panel-title">Capabilities</div>
+                </div>
+                <div class="panel-content">
+                    <ul class="feature-list">
+                        <li class="feature-item">Client-side processing</li>
+                        <li class="feature-item">ZIP archive output</li>
+                        <li class="feature-item">No server uploading</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="warning-panel">
+                <div class="warning-header">
+                    <div class="warning-title">
+                        <span>▲</span>
+                        Legal Notice
+                    </div>
+                </div>
+                <div class="warning-content">
+                    <div class="warning-text">
+                        This tool is designed for legitimate asset recovery purposes. 
+                        Respect intellectual property rights and licensing agreements.
+                    </div>
+                </div>
+            </div>
+
+
+    <script>
+        // File utility functions 
+        var FileUtils = {
+            getIntAt: function(arr, offs) {
+                return (arr[offs+3] << 24) +
+                       (arr[offs+2] << 16) +
+                       (arr[offs+1] << 8) +
+                        arr[offs+0];
+            },
+            getWordAt: function(arr, offs) {
+                return (arr[offs+1] << 8) +
+                        arr[offs+0];
+            }
+        };
+
+        // PKG Reader class 
+        function PkgReaderV1() {
+            this.readPtr = 9;
+            this.fileCount = 0;
+        }
+
+        PkgReaderV1.prototype = {
+            readInt: function(arr) {
+                var i = FileUtils.getIntAt(arr, this.readPtr);
+                this.readPtr += 4;
+                return i;
+            },
+            readWord: function(arr) {
+                var i = FileUtils.getWordAt(arr, this.readPtr);
+                this.readPtr += 2;
+                return i;
+            },
+            readStr: function(arr) {
+                var offs = this.readPtr;
+                var i = this.readInt(arr);
+                var arrString = arr.slice(offs + 4, offs + 4 + i);
+                
+                this.readPtr += i;
+                
+                var string = new TextDecoder("utf-8").decode(arrString);
+                
+                return string;
+            },
+            readBinary: function(arr) {
+                var offs = this.readPtr;
+                var i = this.readInt(arr);
+                var arrString = arr.slice(offs + 4, offs + 4 + i);
+                
+                this.readPtr += i;
+                
+                return arrString;
+            },
+            readVersionString: function(content) {
+                this.readPtr = 0;
+                this.fileCount = 0;
+                
+                var ver = this.readStr(content);
+                return ver;
+            },
+            decodeFile: function(content) {
+                var self = this;
+                
+                this.readPtr = 0;
+                this.fileCount = 0;
+                
+                var ver = this.readStr(content);
+                document.getElementById('versionMetric').textContent = ver;
+                
+                if (ver !== 'PKGV0001' && ver !== 'PKGV0002' && ver !== 'PKGV0003' && ver !== 'PKGV0004') {
+                    console.log('Unknown version but processing anyway:', ver);
+                }
+                
+                var files = [];
+                this.fileCount = this.readInt(content);
+                document.getElementById('filesMetric').textContent = this.fileCount;
+                console.log('File count:', this.fileCount);
+                
+                for (var i = 0; i < this.fileCount; i++) {
+                    var fn = {
+                        name: this.readStr(content),
+                        offset: this.readInt(content),
+                        size: this.readInt(content)
+                    };
+                    files.push(fn);
+                }
+                
+                var filesToRead = files.slice(0);
+                
+                var fnComplete = function() {
+                    updateProgress(95, 'Creating archive...');
+                    
+                    var zip = new JSZip();
+                    for (var i in files) {
+                        var fn = files[i];
+                        zip.file(fn.name, fn.content);
+                    }
+                    zip.generateAsync({type:"blob"})
+                        .then(function(zipContent) {
+                            var url = window.URL.createObjectURL(zipContent);
+                            var sizeKB = (zipContent.size / 1024).toFixed(1);
+                            
+                            document.getElementById('sizeMetric').textContent = sizeKB + 'KB';
+                            
+                            var downloadBtn = document.createElement("a");
+                            downloadBtn.href = url;
+                            downloadBtn.className = 'download-button';
+                            downloadBtn.download = 'extracted_assets.zip';
+                            downloadBtn.innerHTML = `
+                                <span>↓</span>
+                                Download Archive (${sizeKB}KB)
+                            `;
+
+                            var downloadContainer = document.getElementById('downloadContainer');
+                            downloadContainer.innerHTML = '';
+                            downloadContainer.appendChild(downloadBtn);
+                            downloadContainer.style.display = 'block';
+
+                            updateProgress(100, 'Processing complete');
+                            setTimeout(function() {
+                                document.getElementById('progressContainer').style.display = 'none';
+                                showSuccess('Assets extracted successfully');
+                            }, 1500);
+                        });
+                };
+                
+                var cnt = 1;
+                var fnNext = function() {
+                    if (filesToRead.length) {
+                        var fn = filesToRead.shift();
+                        
+                        var progress = (cnt / files.length) * 90;
+                        var fileName = fn.name.length > 35 ? fn.name.substring(0, 32) + '...' : fn.name;
+                        updateProgress(progress, `Processing ${cnt++} of ${files.length}: ${fileName}`);
+                        
+                        console.log('Processing file:', fn.name, fn.size);
+                        fn.content = new Blob([content.slice(self.readPtr + fn.offset, self.readPtr + fn.offset + fn.size)]);
+                        setTimeout(fnNext, 50);
+                    } else {
+                        setTimeout(fnComplete, 200);
+                    }
+                };
+                
+                console.log('Starting processing', files);
+                updateProgress(10, 'Analyzing file structure...');
+                setTimeout(fnNext, 100);
+            }
+        };
+
+        // UI functions
+        function updateProgress(percent, details) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressValue').textContent = Math.round(percent) + '%';
+            document.getElementById('progressDetails').textContent = details;
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorAlert');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 8000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successAlert');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => {
+                successEl.style.display = 'none';
+            }, 8000);
+        }
+
+        function resetUI() {
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('downloadContainer').style.display = 'none';
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('successAlert').style.display = 'none';
+            document.getElementById('versionMetric').textContent = '--';
+            document.getElementById('filesMetric').textContent = '0';
+            document.getElementById('sizeMetric').textContent = '--';
+        }
+
+        function checkBrowserSupport() {
+            try {
+                var fr = new FileReader();
+                if (Uint8Array !== undefined 
+                        && Blob !== undefined 
+                        && ArrayBuffer !== undefined 
+                        && fr.readAsArrayBuffer !== undefined 
+                        && window.URL !== undefined 
+                        && window.URL.createObjectURL !== undefined) {
+                    return true;
+                }
+            }
+            catch (ex) {}
+            
+            return false;
+        }
+
+        function processFile(file) {
+            if (!file) return;
+
+            resetUI();
+            document.getElementById('progressContainer').style.display = 'block';
+            updateProgress(0, 'Reading file...');
+
+            var reader = new FileReader();
+            var decoder = new PkgReaderV1();
+
+            reader.onload = function(e) {
+                try {
+                    updateProgress(5, 'Loading binary data...');
+                    var content = new Uint8Array(e.target.result);
+                    var version = decoder.readVersionString(content);
+                    
+                    switch(version) {
+                        case 'PKGV0001':
+                        case 'PKGV0002':
+                        case 'PKGV0003':
+                        case 'PKGV0004':
+                        default:
+                            setTimeout(function() {
+                                decoder.decodeFile(content);
+                            }, 400);
+                            break;
+                    }
+                } catch (error) {
+                    showError('Processing failed: ' + error.message);
+                    document.getElementById('progressContainer').style.display = 'none';
+                }
+            };
+
+            reader.onerror = function() {
+                showError('Could not read the selected file');
+                document.getElementById('progressContainer').style.display = 'none';
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!checkBrowserSupport()) {
+                document.getElementById('main-content').style.display = 'none';
+                document.getElementById('unsupported-browser').style.display = 'block';
+                return;
+            }
+
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    processFile(e.target.files[0]);
+                }
+            });
+
+            dropZone.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
